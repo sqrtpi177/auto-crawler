@@ -1,14 +1,18 @@
 import tkinter as tk
-from bs4 import BeautifulSoup
-from urllib.request import urlopen
-import urllib.parse
+import tkinter.font
+import threading
+
+from crawl import get_images
 
 
 class App:
     def __init__(self, master):
+        # define components
         self.frame = tk.Frame(master)
 
-        self.title = tk.Label(self.frame, text='찾을 검색어를 입력해 주세요:')
+        self.title = tk.Label(self.frame, text='찾을 검색어를 입력해 주세요.')
+        font = tk.font.Font(family="Arial", size=20, weight="bold")
+        self.title.configure(font=font)
 
         self.frame_input = tk.Frame(self.frame)
 
@@ -28,12 +32,13 @@ class App:
             yscrollcommand=self.text_result_scrollbar_y.set
         )
 
+        # pack components(order is important)
         self.frame.pack(fill='both', expand=True)
-        self.title.pack(ipady=10)
+        self.title.pack(pady=20)
 
         self.frame_input.pack()
-        self.input_keyword.pack(side='left', padx=3, pady=10, ipady=5)
-        self.button_submit.pack(side='right', pady=10, ipady=2)
+        self.input_keyword.pack(side='left', padx=3, pady=5, ipady=5)
+        self.button_submit.pack(side='right', pady=5, ipady=3)
 
         self.frame_text_result.pack(fill='both', expand=True)
         self.text_result_scrollbar_x.pack(side='bottom', fill='x')
@@ -44,39 +49,24 @@ class App:
 
         self.input_keyword.focus_set()
 
+        self.keyword_count = 0
+
     def search(self, event):
+        print(event)
         keyword = self.input_keyword.get()
-        if keyword == '':
-            self.text_result.delete(0, 29)
-            self.text_result.insert('end', '입력한 내용이 없습니다. 다시 입력해 주세요.')
+        if keyword is "":
+            return
         else:
-            self.text_result.delete(0, 29)
+            self.text_result.insert(self.keyword_count, keyword)
+            self.keyword_count += 1
 
-            url = "https://www.google.com/search?q=" \
-                  + urllib.parse.quote_plus(keyword)
+        # make thread and start
+        self.refresh()
+        thread = threading.Thread(target=get_images, args=(keyword,))
+        thread.start()
+        self.title['text'] = '입력된 검색어가 크롤링됩니다.'
+        self.input_keyword.delete(0, 'end')
 
-            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-            html = urlopen(req)
-            soup = BeautifulSoup(html, 'html.parser')
-
-            with open('./example.html', 'w', encoding='utf-8') as f:
-                f.write(str(soup))
-
-            # ZINbbc xpd O9g5cc uUPGi
-            # BNeawe vvjwJb AP7Wnd
-            # BNeawe s3v9rd AP7Wnd
-
-            txt = soup.find_all('div', {'class': 'ZINbbc xpd O9g5cc uUPGi'})[:-1]
-
-            txt_title, txt_text = [], []
-            for item in txt:
-                title = item.find('div', {'class': 'BNeawe vvjwJb AP7Wnd'})
-                text = item.find('div', {'class': 'BNeawe s3v9rd AP7Wnd'})
-                if title is not None and text is not None:
-                    txt_title.append(title.text)
-                    txt_text.append(text.text)
-
-            for i in range(len(txt_title)):
-                self.text_result.insert('end', '[%d]' % (i+1))
-                self.text_result.insert('end', '제목: %s' % txt_title[i])
-                self.text_result.insert('end', '내용: %s' % txt_text[i])
+    def refresh(self):
+        self.frame.update()
+        self.frame.after(1000, self.refresh)
